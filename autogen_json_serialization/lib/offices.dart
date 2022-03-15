@@ -1,35 +1,36 @@
 import 'dart:convert';
+import 'package:json_annotation/json_annotation.dart';
 import 'package:http/http.dart' as http;
 
+part 'offices.g.dart';
+
+@JsonSerializable()
 class OfficesList {
   OfficesList({required this.offices});
   List<Office> offices;
 
-  factory OfficesList.fromJson(Map<String, dynamic> json) {
-    var officesJson = json['offices'] as List;
-    List<Office> officesList =
-        officesJson.map((office) => Office.fromJson(office)).toList();
+  factory OfficesList.fromJson(Map<String, dynamic> json) =>
+      _$OfficesListFromJson(json);
 
-    return OfficesList(
-      offices: officesList,
-    );
-  }
+  Map<String, dynamic> toJson() => _$OfficesListToJson(this);
 }
 
+@JsonSerializable()
 class Office {
   const Office(
       {required this.name, required this.address, required this.image});
+  // Если у нас есть переменные, которые мы хотим называть по-другому в отличии
+  // от JSON, мы должны прописать вот такую конструкцию:
+  // @JsonKey(name: 'dt'); - имя поля в JSON
+  // DateTime dayTime; - новое имя
+
   final String name;
   final String address;
   final String image;
 
-  factory Office.fromJson(Map<String, dynamic> json) {
-    return Office(
-      name: json['name'] as String,
-      address: json['address'] as String,
-      image: json['image'] as String,
-    );
-  }
+  factory Office.fromJson(Map<String, dynamic> json) => _$OfficeFromJson(json);
+
+  Map<String, dynamic> toJson() => _$OfficeToJson(this);
 }
 
 Future<OfficesList> getOfficesList() async {
