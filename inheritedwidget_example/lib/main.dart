@@ -37,10 +37,15 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Inherited Widget'),
+        title: const Text('Inherited Widget'),
       ),
       body: ListView(
-        children: [AppRootWidget()],
+        children: [
+          MyInheritedWidget(
+            child: const AppRootWidget(),
+            myState: this,
+          ),
+        ],
       ),
     );
   }
@@ -53,18 +58,19 @@ class AppRootWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rootWidgetState = MyInheritedWidget.of(context)?.myState;
     return Card(
       elevation: 4,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(height: 50),
-          Text('(Root Widget)', style: kBigTextStyle),
-          Text('0', style: kBigTextStyle),
-          SizedBox(height: 50),
+          const SizedBox(height: 50),
+          const Text('(Root Widget)', style: kBigTextStyle),
+          Text('${rootWidgetState?.counterValue}', style: kBigTextStyle),
+          const SizedBox(height: 50),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
+            children: const [
               Counter(),
               Counter(),
             ],
@@ -82,24 +88,25 @@ class Counter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rootWidgetState = MyInheritedWidget.of(context)?.myState;
     return Card(
-      margin: EdgeInsets.all(4).copyWith(bottom: 32),
+      margin: const EdgeInsets.all(4).copyWith(bottom: 32),
       color: Colors.yellowAccent,
       child: Padding(
         padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
         child: Column(
           children: [
-            Text('(Child Widget)'),
-            Text('0', style: kBigTextStyle),
+            const Text('(Child Widget)'),
+            Text('${rootWidgetState?.counterValue}', style: kBigTextStyle),
             Row(
               children: [
                 IconButton(
-                  icon: Icon(Icons.remove),
-                  onPressed: null,
+                  icon: const Icon(Icons.remove),
+                  onPressed: () => rootWidgetState?._decrementCounter(),
                 ),
                 IconButton(
-                  icon: Icon(Icons.add),
-                  onPressed: null,
+                  icon: const Icon(Icons.add),
+                  onPressed: () => rootWidgetState?._incrementCounter(),
                 ),
               ],
             )
@@ -107,5 +114,24 @@ class Counter extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class MyInheritedWidget extends InheritedWidget {
+  // Создаем переменную, которя хранит состояние, которое нас интересует,
+  // которое хотим изменить
+  final _MyHomePageState myState;
+
+  MyInheritedWidget({Key? key, required Widget child, required this.myState})
+      : super(key: key, child: child);
+
+  // Этот метод определяет нужно ли обновлять дочерние виджеты
+  @override
+  bool updateShouldNotify(MyInheritedWidget oldWidget) {
+    return myState.counterValue != oldWidget.myState.counterValue;
+  }
+
+  static MyInheritedWidget? of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType();
   }
 }
