@@ -33,7 +33,6 @@ class _MyHomePageState extends State<MyHomePage> {
   void _setRating(int newRating) {
     setState(() {
       _rating = newRating;
-      print(_rating);
     });
   }
 
@@ -91,7 +90,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       callBack: _setRating,
                     );
                   }),
-            )
+            ),
           ],
         ),
       ),
