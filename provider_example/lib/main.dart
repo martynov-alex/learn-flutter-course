@@ -1,131 +1,221 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:window_size/window_size.dart';
 
-void main() {
-  setupWindow();
-  runApp(
-    // Provide the model to all widgets within the app. We're using
-    // ChangeNotifierProvider because that's a simple way to rebuild
-    // widgets when a model changes. We could also just use
-    // Provider, but then we would have to listen to Counter ourselves.
-    //
-    // Read Provider's docs to learn about all the available providers.
-    ChangeNotifierProvider(
-      // Initialize the model in the builder. That way, Provider
-      // can own Counter's lifecycle, making sure to call `dispose`
-      // when not needed anymore.
-      create: (context) => Counter(),
-      child: const MyApp(),
-    ),
-  );
-}
-
-const double windowWidth = 360;
-const double windowHeight = 640;
-
-void setupWindow() {
-  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-    WidgetsFlutterBinding.ensureInitialized();
-    setWindowTitle('Provider Counter');
-    setWindowMinSize(const Size(windowWidth, windowHeight));
-    setWindowMaxSize(const Size(windowWidth, windowHeight));
-    getCurrentScreen().then((screen) {
-      setWindowFrame(Rect.fromCenter(
-        center: screen!.frame.center,
-        width: windowWidth,
-        height: windowHeight,
-      ));
-    });
-  }
-}
-
-/// Simplest possible model, with just one field.
-///
-/// [ChangeNotifier] is a class in `flutter:foundation`. [Counter] does
-/// _not_ depend on Provider.
-class Counter with ChangeNotifier {
-  int value = 0;
-
-  void increment() {
-    value += 1;
-    notifyListeners();
-  }
-}
+void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
+  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Inherited Demo',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(),
+      home: DefaultTabController(
+        length: 3,
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<CountProvider>.value(value: CountProvider()),
+            FutureProvider<List<User>>(
+              initialData: [],
+              create: (_) async => UserProvider().loadUserData(),
+            ),
+            StreamProvider<int>(
+              initialData: 0,
+              create: (_) => EventProvider().intStream(),
+            ),
+          ],
+          child: DefaultTabController(
+            length: 3,
+            child: Scaffold(
+              appBar: AppBar(
+                title: Text("Provider Demo"),
+                centerTitle: true,
+                bottom: TabBar(
+                  tabs: <Widget>[
+                    Tab(icon: Icon(Icons.add)),
+                    Tab(icon: Icon(Icons.person)),
+                    Tab(icon: Icon(Icons.message)),
+                  ],
+                ),
+              ),
+              body: TabBarView(
+                children: <Widget>[
+                  MyCountPage(),
+                  MyUserPage(),
+                  MyEventPage(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({Key? key}) : super(key: key);
-
+class MyCountPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // The first case
+    CountProvider _counterState = Provider.of<CountProvider>(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Flutter Demo Home Page'),
-      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            // Consumer looks for an ancestor Provider widget
-            // and retrieves its model (Counter, in this case).
-            // Then it uses that model to build widgets, and will trigger
-            // rebuilds if the model is updated.
-            Consumer<Counter>(
-              builder: (context, counter, child) => Text(
-                '${counter.value}',
-                style: Theme.of(context).textTheme.headline4,
-              ),
+          children: <Widget>[
+            Text('ChangeNotifierProvider Example',
+                style: TextStyle(fontSize: 20)),
+            SizedBox(height: 50),
+            // The first case
+            Text('${_counterState.counterValue}',
+                style: Theme.of(context).textTheme.headline4),
+            ButtonBar(
+              alignment: MainAxisAlignment.center,
+              children: <Widget>[
+                IconButton(
+                  icon: Icon(Icons.remove),
+                  color: Colors.red,
+                  // The second case
+                  onPressed: () =>
+                      context.read<CountProvider>()._decrementCount(),
+                ),
+                // The third case
+                Consumer<CountProvider>(
+                  builder: (BuildContext context, value, Widget? child) {
+                    return IconButton(
+                      icon: Icon(Icons.add),
+                      color: Colors.green,
+                      onPressed: () => value._incrementCount(),
+                    );
+                  },
+                ),
+              ],
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // You can access your providers anywhere you have access
-          // to the context. One way is to use Provider.of<Counter>(context).
-          //
-          // The provider package also defines extension methods on context
-          // itself. You can call context.watch<Counter>() in a build method
-          // of any widget to access the current state of Counter, and to ask
-          // Flutter to rebuild your widget anytime Counter changes.
-          //
-          // You can't use context.watch() outside build methods, because that
-          // often leads to subtle bugs. Instead, you should use
-          // context.read<Counter>(), which gets the current state
-          // but doesn't ask Flutter for future rebuilds.
-          //
-          // Since we're in a callback that will be called whenever the user
-          // taps the FloatingActionButton, we are not in the build method here.
-          // We should use context.read().
-          var counter = context.read<Counter>();
-          counter.increment();
-        },
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
     );
   }
+}
+
+class MyUserPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: EdgeInsets.all(10.0),
+          child: Text('FutureProvider Example, users loaded from a File',
+              style: TextStyle(fontSize: 17)),
+        ),
+        Consumer<List<User>>(
+          builder: (BuildContext context, List<User> users, Widget? child) {
+            return Expanded(
+              child: users.isEmpty
+                  ? Container(child: Center(child: CircularProgressIndicator()))
+                  : ListView.builder(
+                      itemCount: 10,
+                      itemBuilder: (context, index) {
+                        return Container(
+                          height: 50,
+                          color: Colors.grey[(index * 200) % 400],
+                          child: Center(
+                            child: Text(
+                                '${users[index].firstName} ${users[index].lastName} | ${users[index].website}'),
+                          ),
+                        );
+                      },
+                    ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+// Event page (counting)
+class MyEventPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    var _value = Provider.of<int>(context);
+    return Container(
+        child: Center(
+            child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text('StreamProvider Example', style: TextStyle(fontSize: 20)),
+        SizedBox(height: 50),
+        Text('${_value.toString()}',
+            style: Theme.of(context).textTheme.headline4)
+      ],
+    )));
+  }
+}
+
+// CountProvider (ChangeNotifier)
+class CountProvider extends ChangeNotifier {
+  int _count = 0;
+  int get counterValue => _count;
+
+  void _incrementCount() {
+    _count++;
+    notifyListeners();
+  }
+
+  void _decrementCount() {
+    _count--;
+    notifyListeners();
+  }
+}
+
+// UserProvider (Future)
+class UserProvider {
+  final String _dataPath = "assets/users.json";
+  List<User> users = [];
+
+  Future<String> loadAsset() async {
+    return await Future.delayed(Duration(seconds: 2), () async {
+      return await rootBundle.loadString(_dataPath);
+    });
+  }
+
+  Future<List<User>> loadUserData() async {
+    var dataString = await loadAsset();
+    Map<String, dynamic> jsonUserData = jsonDecode(dataString);
+    users = UserList.fromJson(jsonUserData['users']).users;
+    return users;
+  }
+}
+
+// EventProvider (Stream)
+class EventProvider {
+  Stream<int> intStream() {
+    Duration interval = Duration(seconds: 2);
+    return Stream<int>.periodic(interval, (int _count) => _count++);
+  }
+}
+
+// User Model
+class User {
+  final String firstName, lastName, website;
+  const User(this.firstName, this.lastName, this.website);
+
+  User.fromJson(Map<String, dynamic> json)
+      : this.firstName = json['first_name'],
+        this.lastName = json['last_name'],
+        this.website = json['website'];
+}
+
+// User List Model
+class UserList {
+  final List<User> users;
+  UserList(this.users);
+
+  UserList.fromJson(List<dynamic> usersJson)
+      : users = usersJson.map((user) => User.fromJson(user)).toList();
 }
