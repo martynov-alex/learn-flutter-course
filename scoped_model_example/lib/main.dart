@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:scoped_model/scoped_model.dart';
 
 const kBigTextStyle = TextStyle(fontSize: 30);
 
@@ -26,13 +27,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  int get counterValue => _counter;
-
-  void _incrementCounter() => setState(() => _counter++);
-  void _decrementCounter() => setState(() => _counter--);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,9 +35,9 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: ListView(
         children: [
-          MyInheritedWidget(
-            child: const AppRootWidget(),
-            myState: this,
+          ScopedModel<MyModelState>(
+            model: MyModelState(),
+            child: AppRootWidget(),
           ),
         ],
       ),
@@ -58,24 +52,27 @@ class AppRootWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rootWidgetState = MyInheritedWidget.of(context)?.myState;
-    return Card(
-      elevation: 4,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 50),
-          const Text('(Root Widget)', style: kBigTextStyle),
-          Text('${rootWidgetState?.counterValue}', style: kBigTextStyle),
-          const SizedBox(height: 50),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: const [
-              Counter(),
-              Counter(),
-            ],
-          ),
-        ],
+    return ScopedModelDescendant<MyModelState>(
+      // Эта переменная позволяет не перестраивать виджет при обновлении состояния
+      rebuildOnChange: false,
+      builder: (context, child, model) => Card(
+        elevation: 4,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 50),
+            const Text('(Root Widget)', style: kBigTextStyle),
+            Text('${model.counterValue}', style: kBigTextStyle),
+            const SizedBox(height: 50),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: const [
+                Counter(),
+                Counter(),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -88,50 +85,50 @@ class Counter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rootWidgetState = MyInheritedWidget.of(context)?.myState;
-    return Card(
-      margin: const EdgeInsets.all(4).copyWith(bottom: 32),
-      color: Colors.yellowAccent,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
-        child: Column(
-          children: [
-            const Text('(Child Widget)'),
-            Text('${rootWidgetState?.counterValue}', style: kBigTextStyle),
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.remove),
-                  onPressed: () => rootWidgetState?._decrementCounter(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () => rootWidgetState?._incrementCounter(),
-                ),
-              ],
-            )
-          ],
+    return ScopedModelDescendant<MyModelState>(
+      // Эта переменная позволяет не перестраивать виджет при обновлении состояния
+      rebuildOnChange: true,
+      builder: (context, child, model) => Card(
+        margin: const EdgeInsets.all(4).copyWith(bottom: 32),
+        color: Colors.yellowAccent,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
+          child: Column(
+            children: [
+              const Text('(Child Widget)'),
+              Text('${model.counterValue}', style: kBigTextStyle),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove),
+                    onPressed: () => model._decrementCounter(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: () => model._incrementCounter(),
+                  ),
+                ],
+              )
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class MyInheritedWidget extends InheritedWidget {
-  // Создаем переменную, которя хранит состояние, которое нас интересует,
-  // которое хотим изменить
-  final _MyHomePageState myState;
+class MyModelState extends Model {
+  int _counter = 0;
 
-  MyInheritedWidget({Key? key, required Widget child, required this.myState})
-      : super(key: key, child: child);
+  int get counterValue => _counter;
 
-  // Этот метод определяет нужно ли обновлять дочерние виджеты
-  @override
-  bool updateShouldNotify(MyInheritedWidget oldWidget) {
-    return myState.counterValue != oldWidget.myState.counterValue;
+  void _incrementCounter() {
+    _counter++;
+    notifyListeners();
   }
 
-  static MyInheritedWidget? of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType();
+  void _decrementCounter() {
+    _counter--;
+    notifyListeners();
   }
 }
